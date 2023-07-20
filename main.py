@@ -3,7 +3,7 @@ import random
 
 
 class Board:
-    ANIMATION_COUNTDOWN = 30
+    ANIMATION_COUNTDOWN = 4
 
     def __init__(self, window: pygame.Surface, grid_size: int) -> None:
         self.window = window
@@ -13,7 +13,7 @@ class Board:
         self.square_side = self.window_width / grid_size
         self.board = self._create_board()
         self.play = True
-        self.animation_countdown = 0
+        self.animation_countdown = self.ANIMATION_COUNTDOWN
 
     def draw(self) -> None:
         self._update_board()
@@ -57,11 +57,12 @@ class Board:
             self.animation_countdown -= 1
             return
 
+        self.animation_countdown = self.ANIMATION_COUNTDOWN
+
         for row in range(self.grid_size):
             for col in range(self.grid_size):
                 neighbour_count = self._get_neighbour_count(row, col)
                 cell = self.board[row][col]
-                cell.trigger_animation()
 
                 ## Get live cell that will live
                 if cell.get_state() and (neighbour_count == 3 or neighbour_count == 2):
@@ -73,8 +74,6 @@ class Board:
 
                 else:
                     cell.set_next_state(False)
-
-        self.animation_countdown = self.ANIMATION_COUNTDOWN
 
     def _get_neighbour_count(self, row, col) -> int:
         neigbour_count = 0
@@ -97,7 +96,7 @@ class Board:
 
 
 class Cell:
-    ANIMATION_DURATION = 20
+    ANIMATION_DURATION = 3
 
     def __init__(
         self,
@@ -117,13 +116,10 @@ class Cell:
         self.target_color = self._get_color()
         self.animate_cell = False
         self.animation_duration = 0
+        self.animation_buffer = None
 
     def draw(self) -> None:
         if self.animate_cell:
-            if self.current_color == self.target_color:
-                self.animate_cell = False
-                self.animation_duration = 0
-
             self._animate_color(self.current_color, self.target_color)
 
         else:
@@ -132,11 +128,22 @@ class Cell:
 
     def update_state(self) -> None:
         self.is_alive = self.is_alive_next_turn
-        self.current_color = self.target_color
 
     def set_next_state(self, next_turn: bool) -> None:
-        self.is_alive_next_turn = next_turn
+        if not self.animate_cell:
+            self.trigger_animation()
+
+        if self.is_alive_next_turn != None:
+            self.animation_buffer = self.is_alive
+            self.is_alive = self.is_alive_next_turn
+
         self.target_color = self._get_color()
+        self.is_alive_next_turn = next_turn
+        self.current_color = self._get_color()
+
+        if self.animation_buffer != None:
+            self.is_alive = self.animation_buffer
+            self.animation_buffer = None
 
     def get_state(self) -> bool:
         return self.is_alive
@@ -196,7 +203,7 @@ class Cell:
 
 def main(window: pygame.surface) -> None:
     clock = pygame.time.Clock()
-    board = Board(window, 10)
+    board = Board(window, 80)
 
     is_mouse_pressed = False
 
@@ -216,11 +223,10 @@ def main(window: pygame.surface) -> None:
             board.mouse_click(coordinates)
 
         else:
-            clock.tick(15)
-            print(clock.get_fps())
+            clock.tick(20)
             board.draw()
 
-        pygame.display.update()
+        pygame.display.flip()
 
 
 if __name__ == "__main__":
